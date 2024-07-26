@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 
 interface Annotation {
   text: string;
@@ -7,15 +7,16 @@ interface Annotation {
 }
 
 function App() {
-  const [text, setText] = useState<string>(
+  const [text,] = useState<ReactNode>(
+    
     "Lorem ipsum dolor sit amet consectetur adipisicing elit. Non sapiente doloremque, nobis velit sit eum architecto id eaque rem itaque tenetur voluptas consequuntur atque consectetur dicta est enim deserunt voluptates."
   );
+  const [virtualText, setVirtualText] = useState<ReactNode>(text);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-
+  
   useEffect(() => {
-    console.warn(annotations);
-
     const handleMouseUp = () => {
+
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
@@ -36,15 +37,41 @@ function App() {
     return () => {
       document.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [annotations]);
+  }, [annotations, text]);
+
+
+  useEffect(()=>{
+    const parseText = () => {
+      const parsedText = [];
+      let startIndex = 0
+      const endIndex = text?.length - 1;
+      annotations.sort((a, b)=>{
+        return a.startOffset - b.startOffset
+      }).forEach((annotation) => {
+
+        parsedText.push(text.slice(startIndex, annotation.startOffset));
+
+        parsedText.push(<span style={{ "background-color": 'yellow' }}>{annotation.text}</span>)
+        startIndex = annotation.endOffset
+      })
+      parsedText.push(text?.slice(startIndex, endIndex))
+      console.error(parsedText);
+      return parsedText
+    }
+    setVirtualText(parseText())
+  }, [annotations, text])
 
   return (
     <div>
       <div>Test</div>
       <p>
-        {text}
+        {virtualText}
       </p>
       <div>
+        <h3>Length:</h3>
+        <p>
+          {text.length}
+        </p>
         <h3>Annotations:</h3>
         <ul>
           {annotations.map((annotation, index) => (
