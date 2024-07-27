@@ -1,4 +1,4 @@
-import { ReactNode, useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from 'react';
 
 interface Annotation {
   text: string;
@@ -7,80 +7,63 @@ interface Annotation {
 }
 
 function App() {
-  const [text,] = useState<ReactNode>(
-    
-    "Lorem ipsum dolor sit amet consectetur adipisicing elit. Non sapiente doloremque, nobis velit sit eum architecto id eaque rem itaque tenetur voluptas consequuntur atque consectetur dicta est enim deserunt voluptates."
-  );
-  const [virtualText, setVirtualText] = useState<ReactNode>(text);
+  const [text] = useState<string>('one two thr fou');
+  const [virtualText, setVirtualText] = useState<string>(text);
   const [annotations, setAnnotations] = useState<Annotation[]>([]);
-  
+
   useEffect(() => {
     const handleMouseUp = () => {
-
       const selection = window.getSelection();
       if (selection && selection.rangeCount > 0) {
         const range = selection.getRangeAt(0);
         const selectedText = range.toString();
         if (selectedText) {
-          const startOffset = range.startOffset;
-          const endOffset = range.endOffset;
-          setAnnotations((prevAnnotations) => [
-            ...prevAnnotations,
-            { text: selectedText, startOffset, endOffset },
-          ]);
+          const startOffset = text.indexOf(selectedText);
+          const endOffset = startOffset + selectedText.length;
+          setAnnotations((prevAnnotations) => {
+            const newAnnotation = { text: selectedText, startOffset, endOffset };
+            const updatedAnnotations = [...prevAnnotations, newAnnotation].sort(
+              (a, b) => a.startOffset - b.startOffset
+            );
+            return updatedAnnotations;
+          });
         }
       }
     };
-
-    document.addEventListener("mouseup", handleMouseUp);
+    const p = document.getElementById('p');
+    p?.addEventListener('mouseup', handleMouseUp);
 
     return () => {
-      document.removeEventListener("mouseup", handleMouseUp);
+      p?.removeEventListener('mouseup', handleMouseUp);
     };
+  }, [text]);
+
+  const parseText = useCallback(() => {
+    let virtualText = text;
+    let offsetAdjustment = 0;
+
+    annotations.forEach((annotation) => {
+      const { startOffset, endOffset } = annotation;
+      const adjustedStart = startOffset + offsetAdjustment;
+      const adjustedEnd = endOffset + offsetAdjustment;
+
+      virtualText = virtualText.slice(0, adjustedStart) +
+        `<mark>${annotation.text}</mark>` +
+        virtualText.slice(adjustedEnd);
+
+      offsetAdjustment += `<mark>${annotation.text}</mark>`.length - (endOffset - startOffset);
+    });
+
+    setVirtualText(virtualText);
   }, [annotations, text]);
 
-
-  useEffect(()=>{
-    const parseText = () => {
-      const parsedText = [];
-      let startIndex = 0
-      const endIndex = text?.length - 1;
-      annotations.sort((a, b)=>{
-        return a.startOffset - b.startOffset
-      }).forEach((annotation) => {
-
-        parsedText.push(text.slice(startIndex, annotation.startOffset));
-
-        parsedText.push(<span style={{ "background-color": 'yellow' }}>{annotation.text}</span>)
-        startIndex = annotation.endOffset
-      })
-      parsedText.push(text?.slice(startIndex, endIndex))
-      console.error(parsedText);
-      return parsedText
-    }
-    setVirtualText(parseText())
-  }, [annotations, text])
+  useEffect(() => {
+    parseText();
+  }, [parseText]);
 
   return (
     <div>
-      <div>Test</div>
-      <p>
-        {virtualText}
-      </p>
-      <div>
-        <h3>Length:</h3>
-        <p>
-          {text.length}
-        </p>
-        <h3>Annotations:</h3>
-        <ul>
-          {annotations.map((annotation, index) => (
-            <li key={index}>
-              {annotation.text} (Start: {annotation.startOffset}, End: {annotation.endOffset})
-            </li>
-          ))}
-        </ul>
-      </div>
+      <p dangerouslySetInnerHTML={{ __html: virtualText }} id="p" />
     </div>
   );
 }
